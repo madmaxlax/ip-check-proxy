@@ -116,6 +116,10 @@ exports.handler = async (event) => {
   for (const source of sources) {
     const result = await source(ip);
     if (result) {
+      // Aliases matching ip-api.com's field names, so existing clients
+      // written against ip-api.com need only swap the URL.
+      result.query = result.ip;
+      result.regionName = result.region;
       return { statusCode: 200, headers, body: JSON.stringify(result) };
     }
   }
