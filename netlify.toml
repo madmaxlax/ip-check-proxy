@@ -1,0 +1,12 @@
+[build]
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Friendly path: /api/ip -> the function, so the client never
+# has to know about /.netlify/functions/.
+[[redirects]]
+  from = "/api/ip"
+  to = "/.netlify/functions/ip"
+  status = 200
