@@ -1,0 +1,59 @@
+name: Deploy to Netlify
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "netlify/functions/**"
+      - "index.html"
+      - "netlify.toml"
+      - ".github/workflows/deploy.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy function + site files to Netlify
+        env:
+          NETLIFY_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          SITE_ID: d0644945-ea24-4939-8031-67134546c78f
+        run: |
+          set -e
+          # Zip the function and hash everything Netlify needs
+          (cd netlify/functions && zip -q /tmp/ip.zip ip.js)
+          FN_SHA=$(sha256sum /tmp/ip.zip | cut -d' ' -f1)
+          HTML_SHA=$(sha1sum index.html | cut -d' ' -f1)
+
+          # Create the deploy, declaring the function bundle up front
+          DEPLOY_ID=$(curl -s -X POST "https://api.netlify.com/api/v1/sites/$SITE_ID/deploys" \
+            -H "Authorization: Bearer $NETLIFY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"files\":{\"/index.html\":\"$HTML_SHA\"},\"functions\":{\"ip\":\"$FN_SHA\"}}" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          echo "deploy: $DEPLOY_ID"
+
+          # Upload the static file
+          curl -s -X PUT "https://api.netlify.com/api/v1/deploys/$DEPLOY_ID/files/index.html" \
+            -H "Authorization: Bearer $NETLIFY_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @index.html -o /dev/null -w "index.html: %{http_code}\n"
+
+          # Upload the function bundle
+          curl -s -X PUT "https://api.netlify.com/api/v1/deploys/$DEPLOY_ID/functions/ip?runtime=nodejs22.x" \
+            -H "Authorization: Bearer $NETLIFY_TOKEN" \
+            -H "Content-Type: application/zip" \
+            --data-binary @/tmp/ip.zip -o /dev/null -w "function ip: %{http_code}\n"
+
+          # Wait for the deploy to go live
+          for i in $(seq 1 24); do
+            STATE=$(curl -s "https://api.netlify.com/api/v1/deploys/$DEPLOY_ID" \
+              -H "Authorization: Bearer $NETLIFY_TOKEN" \
+              | python3 -c "import json,sys; print(json.load(sys.stdin)['state'])")
+            echo "deploy state: $STATE"
+            [ "$STATE" = "ready" ] && exit 0
+            [ "$STATE" = "error" ] && exit 1
+            sleep 10
+          done
+          echo "deploy did not become ready in time" && exit 1

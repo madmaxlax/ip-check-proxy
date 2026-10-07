@@ -48,7 +48,10 @@ The client IP comes from Netlify's `x-nf-client-connection-ip` header.
 
 ## Deploy
 
-No build step. Deploy the function with the Netlify API:
+Merges to `main` auto-deploy via `.github/workflows/deploy.yml` (needs a
+`NETLIFY_AUTH_TOKEN` repo secret holding a Netlify personal access token).
+
+Manual deploy, no build step, with the Netlify API:
 
 ```bash
 python3 ~/workspace/skills/netlify/bin/deploy_function.py \
