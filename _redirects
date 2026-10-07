@@ -1,0 +1,2 @@
+# Clean URL for the IP check endpoint (200 = rewrite, URL stays clean)
+/api/ip /.netlify/functions/ip 200

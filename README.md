@@ -13,6 +13,9 @@ that fails.
 
 `GET https://ip-check.madmaxlax.com/api/ip`
 
+(a `_redirects` rewrite keeps this clean; the raw function path is
+`/.netlify/functions/ip`)
+
 Response:
 
 ```json
